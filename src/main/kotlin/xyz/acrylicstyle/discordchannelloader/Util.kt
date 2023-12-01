@@ -14,7 +14,7 @@ import java.util.*
  * Class Util provides utility methods for inserting data into a remote server.
  */
 object Util {
-    private const val ENDPOINT = "http://192.168.100.109:8084/insert"
+    private val endpoint = System.getenv("ENDPOINT") ?: "http://192.168.100.109:8084/insert"
     private val httpClient = HttpClient(CIO)
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
@@ -25,7 +25,7 @@ object Util {
      * @throws IllegalStateException if SECRET environment variable is not set
      */
     suspend fun insert(content: String) =
-        httpClient.post(ENDPOINT) {
+        httpClient.post(endpoint) {
             header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
             header("Content-Type", "application/json")
             setBody(Json.encodeToString(listOf(mapOf("text" to content, "id" to UUID.randomUUID().toString()))))
@@ -38,7 +38,7 @@ object Util {
      * @return the response from the endpoint as a string
      */
     suspend fun insert(list: List<Message>): String =
-        httpClient.post(ENDPOINT) {
+        httpClient.post(endpoint) {
             header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
             header("Content-Type", "application/json")
             setBody(Json.encodeToString(list.map { mapOf("text" to toContent(it), "id" to UUID.randomUUID().toString()) }))
