@@ -45,31 +45,29 @@ object Util {
         httpClient.post(endpoint) {
             header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
             header("Content-Type", "application/json")
-            setBody(Json.encodeToString(JsonArray(list.map {
-                JsonObject(
-                    mapOf(
-                        "pageContent" to JsonPrimitive(it.content),
-                        "text" to JsonPrimitive(toContent(it)),
-                        "id" to JsonPrimitive(UUID.randomUUID().toString()),
-                        "metadata" to JsonObject(mapOf("timestamp" to JsonPrimitive(it.timestamp.toEpochMilliseconds())))
-                    )
-                )
-            })))
+            setBody(Json.encodeToString(JsonArray(list.map { toJsonObject(it) })))
         }.bodyAsText()
 
     suspend fun insert(message: Message) =
         httpClient.post(endpoint) {
             header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
             header("Content-Type", "application/json")
-            setBody(Json.encodeToString(JsonArray(listOf(JsonObject(mapOf(
-                "pageContent" to JsonPrimitive(message.content),
-                "text" to JsonPrimitive(toContent(message)),
-                "id" to JsonPrimitive(UUID.randomUUID().toString()),
-                "metadata" to JsonObject(mapOf(
-                    "timestamp" to JsonPrimitive(message.timestamp.toEpochMilliseconds())
-                ))))
-            ))))
+            setBody(Json.encodeToString(JsonArray(listOf(toJsonObject(message)))))
         }.bodyAsText()
+
+    private suspend fun toJsonObject(message: Message): JsonObject = JsonObject(
+        mapOf(
+            "pageContent" to JsonPrimitive(message.content),
+            "id" to JsonPrimitive(UUID.randomUUID().toString()),
+            "metadata" to JsonObject(mapOf(
+                "timestamp" to JsonPrimitive(message.timestamp.toEpochMilliseconds()),
+                "author_name" to JsonPrimitive(message.author?.username ?: ""),
+                "author_id" to JsonPrimitive(message.author?.id?.toString() ?: ""),
+                "url" to JsonPrimitive("https://discord.com/channels/${message.getGuildOrNull()?.id ?: "Unknown"}/${message.channelId}/${message.id}"),
+                "attachments" to JsonPrimitive(message.attachments.joinToString("\n") { it.filename }),
+            ))
+        )
+    )
 
     /**
      * Converts a [Message] to a formatted content string.
