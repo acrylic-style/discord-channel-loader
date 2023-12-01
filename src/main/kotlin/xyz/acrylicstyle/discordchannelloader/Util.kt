@@ -7,6 +7,9 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,6 +27,7 @@ object Util {
      * @param content the content to be inserted
      * @throws IllegalStateException if SECRET environment variable is not set
      */
+    @Deprecated("Use insert(message: Message) instead")
     suspend fun insert(content: String) =
         httpClient.post(endpoint) {
             header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
@@ -41,11 +45,31 @@ object Util {
         httpClient.post(endpoint) {
             header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
             header("Content-Type", "application/json")
-            setBody(Json.encodeToString(list.map { mapOf("text" to toContent(it), "id" to UUID.randomUUID().toString()) }))
+            setBody(Json.encodeToString(JsonArray(list.map {
+                JsonObject(
+                    mapOf(
+                        "pageContent" to JsonPrimitive(it.content),
+                        "text" to JsonPrimitive(toContent(it)),
+                        "id" to JsonPrimitive(UUID.randomUUID().toString()),
+                        "metadata" to JsonObject(mapOf("timestamp" to JsonPrimitive(it.timestamp.toEpochMilliseconds())))
+                    )
+                )
+            })))
         }.bodyAsText()
 
     suspend fun insert(message: Message) =
-        insert(toContent(message))
+        httpClient.post(endpoint) {
+            header("Authorization", System.getenv("SECRET") ?: error("SECRET is not set"))
+            header("Content-Type", "application/json")
+            setBody(Json.encodeToString(JsonArray(listOf(JsonObject(mapOf(
+                "pageContent" to JsonPrimitive(message.content),
+                "text" to JsonPrimitive(toContent(message)),
+                "id" to JsonPrimitive(UUID.randomUUID().toString()),
+                "metadata" to JsonObject(mapOf(
+                    "timestamp" to JsonPrimitive(message.timestamp.toEpochMilliseconds())
+                ))))
+            ))))
+        }.bodyAsText()
 
     /**
      * Converts a [Message] to a formatted content string.
